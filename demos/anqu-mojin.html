@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh" data-page-node-id="nyFVjNAP8Qrc9NhQm2NcLj">
+<head data-page-node-id="as88fi07hD8CrTWV962oA8">
+<meta charset="UTF-8" data-page-node-id="3L7xFyRQWzWYFf5evwGXei">
+<meta name="viewport" content="width=device-width,initial-scale=1" data-page-node-id="0B8GLiOl9lklyYGNFm0gHO">
+<title>暗区摸金 · 撤离 v4</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0B1120;color:#E6EAF2;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;display:flex;flex-direction:column;align-items:center;padding:14px;min-height:100vh}
+h1{font-size:18px;font-weight:500;margin-bottom:4px}
+.sub{font-size:12px;color:#ADB0B1;margin-bottom:10px}
+canvas{background:#0B1120;border:0.5px solid #24304d;border-radius:12px;max-width:100%;cursor:pointer;display:block}
+.tip{font-size:12px;color:#ADB0B1;margin-top:12px;max-width:460px;line-height:1.75}
+</style>
+</head>
+<body data-page-node-id="Q0tuEj0b7cOyUrFQYHiicN">
+<h1 data-page-node-id="NYGtUAOk4j9cO9ipB41w9D">暗区摸金 · 撤离 <span style="font-size:12px;color:#ADB0B1" data-page-node-id="ZKeC6oaqbeh6WbK9XUQ4vz">v4</span></h1>
+<div class="sub" data-page-node-id="D6r42dHrux8xlEJPmCLc0B">生命 · 警戒 · 五档物资 · 随机事件</div>
+<canvas id="cv" width="420" height="620" data-page-node-id="CfpAg70K8pNLepcOUcTgt9"></canvas>
+<div class="tip" data-page-node-id="b5Q04DegLxwkpBTnfXE0eC">
+<b data-page-node-id="iziTwYHipeE9VED8fTHkgI">双资源联动</b>：警戒越高 → 摸物资越容易触发埋伏掉血 → 血量越低 → 撤离时越容易被蹲。贪的代价是立体的。<br data-page-node-id="3miQ7Efa2linJmziD6rRnU">
+<b data-page-node-id="HD4BI6lf1liDQwsZvxbRbk">物资五档</b>：绿30% / 蓝20% / 紫20% / 金15% / 红4% / <b data-page-node-id="BbH1R82boMreEoxmEPRCYP">机密文件1%</b>，价值比约 1:5:25:100:500，终极大红一百万。<br data-page-node-id="l8mhVQRHNh9kV303pxy0gI">
+<b data-page-node-id="xkiV1n8ZRAcpUDmqKtjRMQ">随机事件</b>：摸到的物资可能已被人摸过 → 追击（搏一把）或放弃；追击成功率看物品价值、当前生命与警戒。<br data-page-node-id="upNlSVAX0SNEcsBIDCpYhI">
+死法三种：生命归零 · 警戒满被围 · 撤离点被蹲。
+</div>
+<script>
+var cv=document.getElementById('cv');
+var ctx=cv.getContext('2d');
+var W=420,H=620;
+
+var COL={bg:'#0B1120',card:'#14203A',line:'#24304d',txt:'#E6EAF2',sub:'#ADB0B1',
+  blue:'#0052d9',orange:'#FF671F',cyan:'#00A9CE',green:'#79C000',purple:'#9B26B6',
+  red:'#E24B4A',gold:'#FAC775'};
+
+var TIERS=[
+  {n:'绿',c:'#79C000',v:[800,1000,1200],names:['压缩饼干','绷带','空罐头','火柴','瓶装水','弹匣']},
+  {n:'蓝',c:'#00A9CE',v:[4000,5000,6000],names:['手术包','军用弹药','钥匙','红点瞄具','手雷','止痛药']},
+  {n:'紫',c:'#9B26B6',v:[20000,25000,30000],names:['显卡','黄金首饰','高级瞄具','防弹插板','军用通讯器']},
+  {n:'金',c:'#FAC775',v:[80000,100000,120000],names:['金条','古董怀表','军用芯片','黄金雕像']},
+  {n:'红',c:'#E24B4A',v:[400000,500000,600000],names:['遗产宝箱','绝密U盘','军火库钥匙']},
+  {n:'机密',c:'#FF6B6B',v:[1000000],names:['机密文件']}
+];
+var DEXALL=[];
+(function(){for(var i=0;i<TIERS.length;i++){for(var j=0;j<TIERS[i].names.length;j++)DEXALL.push({n:TIERS[i].names[j],t:i,v:TIERS[i].v[0]});}})();
+
+var GEARS={
+  knife:{name:'跑刀',desc:'免费入场 · x1.0 · 警戒+8 · 撤离+5% · 升档0%',mul:1.0,dgr:8,box:0,esc:-5,cost:0,luck:0},
+  half:{name:'半装',desc:'入场15万 · x1.3 · 警戒+12 · 撤离+0% · 升档15%',mul:1.3,dgr:12,box:1,esc:0,cost:150000,luck:15},
+  full:{name:'全装',desc:'入场40万 · x1.6 · 警戒+18 · 撤离-8% · 升档30%',mul:1.6,dgr:18,box:1,esc:8,cost:400000,luck:30}
+};
+
+var UPGRADES=[
+  {key:'ear',name:'战术耳机',costs:[200000,600000,1500000],desc:['揭示1格情报','优先揭示危险','揭示2格情报','揭示2格且优先大货']},
+  {key:'bag',name:'扩容背包',costs:[300000,900000,2000000],desc:['保险箱 +0','保险箱 +1','保险箱 +2','阵亡保留全部']},
+  {key:'armor',name:'防弹插板',costs:[400000,1200000,3000000],desc:['生命上限 100','生命上限 115','生命上限 130','生命上限 150']}
+];
+var QUEST_POOL=[
+  {id:'esc2',txt:'撤离成功 2 次',target:2,reward:150000},
+  {id:'gold',txt:'摸到 1 件金色及以上物资',target:1,reward:200000},
+  {id:'knife1',txt:'用跑刀撤离成功 1 次',target:1,reward:120000},
+  {id:'open8',txt:'单局搜刮 8 格并成功撤离',target:1,reward:180000},
+  {id:'earn',txt:'累计收益 100 万柯恩币',target:1000000,reward:250000},
+  {id:'hp80',txt:'生命保持在 80 以上成功撤离',target:1,reward:150000}
+];
+var STORE=[
+  {id:'cdk1',name:'暗区CDK · 新手礼包',cost:500000},
+  {id:'cdk2',name:'暗区CDK · 柯恩币礼包',cost:3000000},
+  {id:'charm',name:'暗区限定挂饰',cost:8000000},
+  {id:'skin',name:'暗区联动皮肤',cost:20000000}
+];
+var RANKS=[{t:0,n:'跑刀仔'},{t:300000,n:'摸金客'},{t:1500000,n:'精锐'},{t:6000000,n:'暗区老手'},{t:20000000,n:'暗区传奇'}];
+var SIGN=[20000,40000,60000,100000,150000,200000,300000];
+
+var S=null;
+var state='menu',gear=null,grid=[],loot=[],value=0,alertLv=0,opened=0,hp=100;
+var lastResult=null,hits=[],flash=null,newDex=[],pendingEvent=null;
+
+function today(){return new Date().toDateString();}
+function shiftDay(n){var d=new Date();d.setDate(d.getDate()+n);return d.toDateString();}
+function loadSave(){
+  S={coins:0,total:0,best:0,upg:{ear:0,bag:0,armor:0},dex:{},quest:null,sign:{last:'',streak:0},redeemed:{}};
+  try{var raw=localStorage.getItem('aq_save_v4');if(raw){var o=JSON.parse(raw);for(var k in S){if(o[k]!==undefined)S[k]=o[k];}}}catch(e){}
+  ensureQuest();
+}
+function persist(){try{localStorage.setItem('aq_save_v4',JSON.stringify(S));}catch(e){}}
+function ensureQuest(){
+  var t=today();
+  if(!S.quest||S.quest.date!==t){
+    var pool=QUEST_POOL.slice(),list=[];
+    for(var i=0;i<3&&pool.length;i++){
+      var k=Math.floor(Math.random()*pool.length),q=pool.splice(k,1)[0];
+      list.push({id:q.id,txt:q.txt,target:q.target,prog:0,reward:q.reward,claimed:false});
+    }
+    S.quest={date:t,list:list};persist();
+  }
+}
+function rankIdx(){for(var i=RANKS.length-1;i>=0;i--){if(S.total>=RANKS[i].t)return i;}return 0;}
+
+function fmt(v){
+  if(v>=100000000)return (v/100000000).toFixed(2)+'亿';
+  if(v>=10000)return (v/10000).toFixed(v>=1000000?0:1)+'万';
+  return String(v);
+}
+function rr(x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+}
+function pick(a){return a[Math.floor(Math.random()*a.length)];}
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function hpMax(){return 100+S.upg.armor*15;}
+function alertMax(){var base=100;if(grid.length>0)base=Math.round(100*(0.6+0.4*grid.length/12));return base;}
+
+var DPR=1,WEB_SCALE=1.35;
+function applyDPR(){
+  DPR=window.devicePixelRatio||1;
+  cv.width=Math.round(W*WEB_SCALE*DPR);
+  cv.height=Math.round(H*WEB_SCALE*DPR);
+  cv.style.width=Math.round(W*WEB_SCALE)+'px';
+  cv.style.height='auto';
+  ctx.setTransform(WEB_SCALE*DPR,0,0,WEB_SCALE*DPR,0,0);
+}
+function setH(h){if(h!==H){H=h;applyDPR();}}
+
+function dimsFor(ri){
+  if(ri<=0)return{col:4,row:3,core:1};
+  if(ri===1)return{col:4,row:4,core:1};
+  if(ri===2)return{col:5,row:4,core:1};
+  if(ri===3)return{col:5,row:5,core:2};
+  return{col:5,row:5,core:3};
+}
+function curDims(){return dimsFor(rankIdx());}
+function cellSize(){
+  var d=curDims(),GX=10,GAP=8;
+  var CW=Math.floor((W-2*GX-(d.col-1)*GAP)/d.col);
+  var CH=d.row<=3?84:(d.row===4?76:68);
+  return{GX:GX,GAP:GAP,CW:CW,CH:CH,row:d.row,col:d.col,core:d.core};
+}
+function raidH(){var L=cellSize();return 160+L.row*(L.CH+L.GAP)+14+160;}
+
+function rollItem(){
+  var r=Math.random()*100,t;
+  if(r<10)return null;
+  if(r<40)t=0;else if(r<60)t=1;else if(r<80)t=2;else if(r<95)t=3;else if(r<99)t=4;else t=5;
+  if(Math.random()*100<GEARS[gear].luck)t=Math.min(t+1,5);
+  var T=TIERS[t];
+  return{n:pick(T.names),v:pick(T.v),tier:t};
+}
+function enterRaid(k){
+  var g=GEARS[k];
+  if(S.coins<g.cost){setFlash('柯恩币不足','入场需要 '+fmt(g.cost),COL.red);return;}
+  S.coins-=g.cost;persist();
+  gear=k;newRaid();
+}
+function newRaid(){
+  var d=curDims(),r,c,i,j,tmp;
+  grid=[];
+  var safeLeft=(d.core>=2)?2:1,bodyLeft=1;
+  for(r=0;r<d.row;r++){
+    var isCore=(r>=d.row-d.core),types=[];
+    for(c=0;c<d.col;c++)types.push('loot');
+    if(isCore&&safeLeft>0){types[0]='safe';safeLeft--;}
+    else if(isCore&&bodyLeft>0&&d.col>1){types[1]='body';bodyLeft--;}
+    var dc=isCore?Math.min(2,Math.max(1,d.col-2)):Math.max(1,Math.round(d.col*0.25)),placed=0;
+    for(i=0;i<types.length&&placed<dc;i++){if(types[i]==='loot'){types[i]='danger';placed++;}}
+    shuffle(types);
+    for(c=0;c<d.col;c++){
+      var t=types[c],cell={opened:false,type:t,row:r,col:c,revealed:null,item:null};
+      if(t==='loot')cell.item=rollItem();
+      else if(t==='safe'){var st=Math.random()<0.35?5:4;var ST=TIERS[st];cell.item={n:pick(ST.names),v:pick(ST.v),tier:st};}
+      else if(t==='body'){cell.item={n:pick(TIERS[2].names),v:pick(TIERS[2].v),tier:2};}
+      grid.push(cell);
+    }
+  }
+  loot=[];value=0;alertLv=0;opened=0;hp=hpMax();newDex=[];pendingEvent=null;
+  state='raid';
+}
+function neighbors(i){
+  var c=grid[i],out=[],dirs=[[-1,0],[1,0],[0,-1],[0,1]],k,r,c2,m;
+  for(k=0;k<dirs.length;k++){
+    r=c.row+dirs[k][0];c2=c.col+dirs[k][1];
+    if(r<0||c2<0)continue;
+    for(m=0;m<grid.length;m++){if(grid[m].row===r&&grid[m].col===c2){out.push(m);break;}}
+  }
+  return out;
+}
+function tagOf(g){
+  if(g.type==='danger')return 'danger';
+  if(g.type==='safe')return 'gold';
+  if(g.type==='body')return 'gold';
+  if(g.type==='loot'&&g.item&&g.item.tier>=4)return 'gold';
+  return 'safe';
+}
+function revealCells(i){
+  var ns=neighbors(i),pool=[],k;
+  for(k=0;k<ns.length;k++){if(!grid[ns[k]].opened&&!grid[ns[k]].revealed)pool.push(ns[k]);}
+  if(!pool.length)return;
+  var cnt=S.upg.ear>=2?2:1,prefer=null;
+  if(S.upg.ear>=3)prefer='gold';else if(S.upg.ear>=1)prefer='danger';
+  if(prefer){pool.sort(function(a,b){return (tagOf(grid[a])===prefer?0:1)-(tagOf(grid[b])===prefer?0:1);});}
+  for(k=0;k<Math.min(cnt,pool.length);k++){grid[pool[k]].revealed=tagOf(grid[pool[k]]);}
+}
+function ambushChance(){return 12+(alertLv/alertMax())*28;}
+function openCell(i){
+  if(state!=='raid'||grid[i].opened||pendingEvent)return;
+  var g=grid[i];g.opened=true;opened++;
+  if(g.type==='danger'){
+    alertLv+=GEARS[gear].dgr;
+    setFlash('脚 步 声','警戒 +'+GEARS[gear].dgr,COL.red);
+    if(alertLv>=alertMax()){endRaid('killed');return;}
+  }else if(g.type==='safe'){
+    loot.push(g.item);value+=g.item.v;markDex(g.item);alertLv+=25;
+    setFlash('保 险 箱',g.item.n+' +'+fmt(g.item.v)+' · 警戒 +25',COL.gold);
+    if(alertLv>=alertMax()){endRaid('killed');return;}
+  }else if(g.type==='body'){
+    loot.push(g.item);value+=g.item.v;markDex(g.item);
+    if(Math.random()<0.5){hurt(28,'舔 包 遇 袭','你舔了包…枪响！');}
+    else setFlash('舔 包 成 功',g.item.n+' +'+fmt(g.item.v),COL.cyan);
+  }else{
+    var it=g.item;
+    if(!it){setFlash('空 的','什么都没有',COL.sub);}
+    else if(Math.random()*100<12){
+      pendingEvent={item:it,chance:chaseChance(it)};
+    }else{
+      loot.push(it);value+=it.v;markDex(it);
+      if(Math.random()*100<ambushChance())hurt(Math.round(18+Math.random()*20),'遭 遇 埋 伏',it.n+' +'+fmt(it.v)+' · 但有人埋伏');
+      else if(it.tier>=3)setFlash(it.tier>=5?'机 密 文 件':'大 货',it.n+' +'+fmt(it.v),COL.gold);
+    }
+  }
+  revealCells(i);
+}
+function chaseChance(it){
+  var base=45+(hp/hpMax())*25-(alertLv/alertMax())*20-it.tier*6;
+  return Math.round(Math.max(15,Math.min(85,base)));
+}
+function hurt(dmg,title,sub){
+  hp-=dmg;
+  setFlash(title,sub+' · 生命 -'+dmg,COL.red);
+  if(hp<=0){hp=0;endRaid('dead');}
+}
+function markDex(it){if(!S.dex[it.n]){S.dex[it.n]=true;newDex.push(it.n);persist();}}
+function resolveChase(go){
+  var e=pendingEvent;pendingEvent=null;
+  if(!go){setFlash('放 弃 追 击','你选择了稳妥',COL.sub);return;}
+  if(Math.random()*100<e.chance){
+    var bonus=Math.round(e.item.v*0.5);
+    loot.push(e.item);value+=e.item.v+bonus;markDex(e.item);
+    setFlash('追 击 成 功',e.item.n+' +'+fmt(e.item.v+bonus)+'（含舔包 +50%）',COL.green);
+  }else{
+    hurt(Math.round(22+Math.random()*18),'追 击 失 败','被反杀！');
+  }
+}
+function escapeChance(){
+  var mx=alertMax();
+  var p=15+(alertLv/mx)*30+(opened/grid.length)*16+GEARS[gear].esc+(1-hp/hpMax())*20;
+  p=Math.max(8,Math.min(78,p));
+  return Math.round(100-p);
+}
+function tryEscape(){
+  var fail=100-escapeChance();
+  endRaid((Math.random()*100<fail)?'ambush':'escape');
+}
+function endRaid(reason){
+  var mul=GEARS[gear].mul,gained=0;
+  if(reason==='escape')gained=Math.round(value*mul);
+  else{
+    var keep=GEARS[gear].box+S.upg.bag;
+    if(S.upg.bag>=3)keep=loot.length;
+    if(keep>0&&loot.length){
+      var sorted=loot.slice().sort(function(a,b){return b.v-a.v;}),s=0;
+      for(var i=0;i<Math.min(keep,sorted.length);i++)s+=sorted[i].v;
+      gained=Math.round(s*mul);
+    }
+  }
+  var entry=GEARS[gear].cost,net=gained-entry;
+  S.coins+=gained;S.total+=Math.max(0,net);
+  if(gained>S.best)S.best=gained;
+  updateQuests(reason,gained);
+  persist();
+  var persona;
+  if(reason==='dead')persona='倒在暗区里';
+  else if(reason==='killed')persona='老六的猎物';
+  else if(reason==='ambush')persona='撤离点冤魂';
+  else if(opened<=4)persona='稳健派';
+  else if(opened>=9)persona='赌狗';
+  else persona='摸金老手';
+  lastResult={reason:reason,gained:gained,cost:entry,net:net,persona:persona,opened:opened,
+    alertLv:alertLv,hp:hp,newDex:newDex.slice()};
+  state='result';
+}
+function updateQuests(reason,gained){
+  if(!S.quest)return;
+  for(var i=0;i<S.quest.list.length;i++){
+    var q=S.quest.list[i];
+    if(q.id==='esc2'&&reason==='escape')q.prog++;
+    else if(q.id==='gold'){for(var k=0;k<loot.length;k++){if(loot[k].tier>=3){q.prog=1;break;}}}
+    else if(q.id==='knife1'&&gear==='knife'&&reason==='escape')q.prog=1;
+    else if(q.id==='open8'&&reason==='escape'&&opened>=8)q.prog=1;
+    else if(q.id==='earn')q.prog+=gained;
+    else if(q.id==='hp80'&&reason==='escape'&&hp>=80)q.prog=1;
+    if(q.prog>q.target)q.prog=q.target;
+  }
+}
+function doSign(){
+  var t=today();
+  if(S.sign.last===t){setFlash('今 日 已 签','明天再来',COL.sub);return;}
+  S.sign.streak=(S.sign.last===shiftDay(-1))?S.sign.streak+1:1;
+  var rw=SIGN[Math.min(S.sign.streak-1,6)];
+  S.coins+=rw;S.sign.last=t;persist();
+  setFlash('签 到 成 功','+'+fmt(rw)+' · 连续 '+S.sign.streak+' 天',COL.green);
+}
+function genCode(){
+  var s='',c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  for(var i=0;i<16;i++){s+=c.charAt(Math.floor(Math.random()*c.length));if(i%4===3&&i<15)s+='-';}
+  return s;
+}
+function doRedeem(it){
+  if(S.redeemed[it.id]){setFlash('已 兑 换','奖励已在下方显示',COL.sub);return;}
+  if(S.coins<it.cost){setFlash('柯恩币不足','还差 '+fmt(it.cost-S.coins),COL.red);return;}
+  S.coins-=it.cost;S.redeemed[it.id]=genCode();persist();
+  setFlash('兑 换 成 功','去暗区突围内输入兑换码',COL.gold);
+}
+function doUpgrade(u){
+  var lv=S.upg[u.key];
+  if(lv>=3){setFlash('已 满 级','',COL.sub);return;}
+  var cost=u.costs[lv];
+  if(S.coins<cost){setFlash('柯恩币不足','还差 '+fmt(cost-S.coins),COL.red);return;}
+  S.coins-=cost;S.upg[u.key]=lv+1;persist();
+  setFlash('升 级 完 成',u.name+' → Lv'+(lv+1)+'：'+u.desc[lv+1],COL.green);
+}
+function setFlash(title,sub,color){flash={title:title,sub:sub,color:color,t:85};}
+
+function button(x,y,w,h,label,sub,color,action){
+  ctx.fillStyle=COL.card;rr(x,y,w,h,10);ctx.fill();
+  ctx.strokeStyle=color;ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle=COL.txt;ctx.font='500 15px system-ui';ctx.textAlign='center';
+  ctx.fillText(label,x+w/2,sub?y+25:y+h/2+5);
+  if(sub){ctx.fillStyle=COL.sub;ctx.font='12px system-ui';ctx.fillText(sub,x+w/2,y+46);}
+  hits.push({x:x,y:y,w:w,h:h,action:action});
+}
+function smallBtn(x,y,w,h,label,color,action){
+  ctx.fillStyle=COL.card;rr(x,y,w,h,8);ctx.fill();
+  ctx.strokeStyle=color;ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle=color;ctx.font='500 13px system-ui';ctx.textAlign='center';
+  ctx.fillText(label,x+w/2,y+h/2+5);
+  hits.push({x:x,y:y,w:w,h:h,action:action});
+}
+function pageTitle(t){
+  ctx.fillStyle=COL.txt;ctx.font='500 18px system-ui';ctx.textAlign='center';
+  ctx.fillText(t,W/2,42);
+  ctx.fillStyle=COL.cyan;ctx.font='13px system-ui';
+  ctx.fillText('柯恩币 '+fmt(S.coins),W/2,66);
+}
+function backBtn(y){button(20,y,380,42,'返 回 主 菜 单','',COL.sub,function(){state='menu';});}
+
+function drawMenu(){
+  var ri=rankIdx(),rk=RANKS[ri];
+  ctx.fillStyle=COL.txt;ctx.font='500 19px system-ui';ctx.textAlign='center';
+  ctx.fillText('暗区摸金 · 撤离',W/2,52);
+  ctx.fillStyle=COL.purple;ctx.font='500 15px system-ui';
+  var stars='';for(var i=0;i<=ri;i++)stars+='★';
+  ctx.fillText(rk.n+'  '+stars,W/2,78);
+  hits.push({x:W/2-90,y:62,w:180,h:30,action:function(){
+    var ri2=rankIdx();
+    S.total=(ri2>=RANKS.length-1)?0:(RANKS[ri2+1].t+1);persist();
+    var d2=curDims();
+    setFlash('段 位 调 试',RANKS[rankIdx()].n+' · 地图 '+d2.col+'×'+d2.row+' = '+(d2.col*d2.row)+' 格',COL.purple);
+  }});
+  var nxt=(ri<RANKS.length-1)?RANKS[ri+1].t:null;
+  ctx.fillStyle=COL.card;rr(70,90,280,10,5);ctx.fill();
+  var pw=nxt!==null?280*Math.min(1,(S.total-rk.t)/(nxt-rk.t)):280;
+  if(pw>0){ctx.fillStyle=COL.purple;rr(70,90,pw,10,5);ctx.fill();}
+  ctx.fillStyle=COL.sub;ctx.font='12px system-ui';
+  ctx.fillText(nxt!==null?('距 '+RANKS[ri+1].n+' 还差 '+fmt(nxt-S.total)):'已达最高段位',W/2,116);
+  ctx.fillStyle=COL.cyan;ctx.font='13px system-ui';
+  ctx.fillText('柯恩币 '+fmt(S.coins)+' · 最高单局 '+fmt(S.best),W/2,138);
+  var ak=S.coins>=GEARS.knife.cost,ah=S.coins>=GEARS.half.cost,af=S.coins>=GEARS.full.cost;
+  button(30,158,360,74,GEARS.knife.name,GEARS.knife.desc,ak?COL.cyan:COL.sub,function(){enterRaid('knife');});
+  button(30,240,360,74,GEARS.half.name,GEARS.half.desc,ah?COL.blue:COL.sub,function(){enterRaid('half');});
+  button(30,322,360,74,GEARS.full.name,GEARS.full.desc,af?COL.orange:COL.sub,function(){enterRaid('full');});
+  var canSign=(S.sign.last!==today());
+  smallBtn(20,410,69,50,'仓库',COL.green,function(){state='shop';});
+  smallBtn(97,410,69,50,'图鉴',COL.purple,function(){state='dex';});
+  smallBtn(174,410,69,50,'任务',COL.orange,function(){state='quest';});
+  smallBtn(251,410,69,50,'商店',COL.gold,function(){state='store';});
+  smallBtn(328,410,69,50,canSign?'签到!':'签到',canSign?COL.green:COL.sub,doSign);
+  var dd=curDims(),nd=dimsFor(Math.min(ri+1,RANKS.length-1));
+  var mapSame=(dd.col===nd.col&&dd.row===nd.row),dc=0;
+  for(var k in S.dex){if(S.dex[k])dc++;}
+  ctx.fillStyle=COL.sub;ctx.font='12px system-ui';ctx.textAlign='center';
+  ctx.fillText('摸金 → 升级仓库 → 兑CDK · 点上方段位名可调试切换',W/2,486);
+  ctx.fillStyle=COL.cyan;
+  ctx.fillText('地图 '+dd.col+'×'+dd.row+' = '+(dd.col*dd.row)+' 格 · 核心区 '+dd.core+' 行 · 图鉴 '+dc+'/'+DEXALL.length,W/2,506);
+  if(ri<RANKS.length-1&&!mapSame){ctx.fillStyle=COL.purple;ctx.fillText('升到 '+RANKS[ri+1].n+' 解锁 '+nd.col+'×'+nd.row+' = '+(nd.col*nd.row)+' 格',W/2,526);}
+  else if(ri<RANKS.length-1){ctx.fillStyle=COL.gold;ctx.fillText('升到 '+RANKS[ri+1].n+' · 核心区扩至 '+nd.core+' 行（更肥）',W/2,526);}
+  else{ctx.fillStyle=COL.gold;ctx.fillText('地图已满级 · 核心区 '+dd.core+' 行',W/2,526);}
+}
+
+function drawShop(){
+  pageTitle('仓 库 · 永久升级');
+  for(var i=0;i<UPGRADES.length;i++){
+    var u=UPGRADES[i],lv=S.upg[u.key],y=92+i*128;
+    ctx.fillStyle=COL.card;rr(20,y,380,116,12);ctx.fill();
+    ctx.strokeStyle=COL.line;ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle=COL.txt;ctx.font='500 15px system-ui';ctx.textAlign='left';
+    ctx.fillText(u.name+'  Lv'+lv,36,y+26);
+    ctx.fillStyle=COL.sub;ctx.font='12px system-ui';
+    ctx.fillText('当前：'+u.desc[lv],36,y+50);
+    if(lv<3){
+      ctx.fillStyle=COL.green;ctx.fillText('下级：'+u.desc[lv+1],36,y+72);
+      smallBtn(270,y+82,116,26,'升级 '+fmt(u.costs[lv]),S.coins>=u.costs[lv]?COL.green:COL.sub,(function(uu){return function(){doUpgrade(uu);};})(u));
+    }else{ctx.fillStyle=COL.gold;ctx.fillText('已满级',36,y+72);}
+  }
+  backBtn(556);
+}
+
+function drawDex(){
+  var dc=0,i;
+  for(i=0;i<DEXALL.length;i++){if(S.dex[DEXALL[i].n])dc++;}
+  pageTitle('物 资 图 鉴');
+  ctx.fillStyle=COL.txt;ctx.font='500 14px system-ui';ctx.textAlign='center';
+  ctx.fillText('收集进度  '+dc+' / '+DEXALL.length,W/2,92);
+  var CW=76,CH=54,GAP=8,x,y;
+  for(i=0;i<DEXALL.length;i++){
+    var r=Math.floor(i/5),c=i%5;
+    x=16+c*(CW+GAP);y=110+r*(CH+GAP);
+    var got=S.dex[DEXALL[i].n],tc=TIERS[DEXALL[i].t].c;
+    ctx.fillStyle=got?'#12241a':COL.card;rr(x,y,CW,CH,8);ctx.fill();
+    ctx.strokeStyle=got?tc:COL.line;ctx.lineWidth=got?1.2:1;ctx.stroke();
+    ctx.textAlign='center';
+    if(got){
+      ctx.fillStyle=tc;ctx.font='500 11px system-ui';ctx.fillText(DEXALL[i].n,x+CW/2,y+24);
+      ctx.fillStyle=COL.sub;ctx.font='11px system-ui';ctx.fillText(TIERS[DEXALL[i].t].n+' · '+fmt(DEXALL[i].v),x+CW/2,y+42);
+    }else{
+      ctx.fillStyle=COL.sub;ctx.font='500 14px system-ui';ctx.fillText('? ? ?',x+CW/2,y+32);
+    }
+  }
+  backBtn(556);
+}
+
+function drawQuest(){
+  pageTitle('每 日 任 务');
+  ctx.fillStyle=COL.sub;ctx.font='12px system-ui';ctx.textAlign='center';
+  ctx.fillText('每日 0 点刷新 · 完成领取柯恩币',W/2,90);
+  for(var i=0;i<S.quest.list.length;i++){
+    var q=S.quest.list[i],y=110+i*128;
+    ctx.fillStyle=COL.card;rr(20,y,380,116,12);ctx.fill();
+    ctx.strokeStyle=q.prog>=q.target?COL.green:COL.line;ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle=COL.txt;ctx.font='500 14px system-ui';ctx.textAlign='left';
+    ctx.fillText(q.txt,36,y+28);
+    ctx.fillStyle=COL.card;rr(36,y+46,240,10,5);ctx.fill();
+    var pw=240*Math.min(1,q.prog/q.target);
+    if(pw>0){ctx.fillStyle=q.prog>=q.target?COL.green:COL.orange;rr(36,y+46,pw,10,5);ctx.fill();}
+    ctx.fillStyle=COL.sub;ctx.font='12px system-ui';ctx.textAlign='left';
+    ctx.fillText(q.prog+' / '+q.target+'   奖励 '+fmt(q.reward),36,y+76);
+    if(q.claimed){ctx.fillStyle=COL.sub;ctx.textAlign='right';ctx.font='13px system-ui';ctx.fillText('已领取',384,y+96);}
+    else if(q.prog>=q.target){
+      smallBtn(276,y+70,110,32,'领取 '+fmt(q.reward),COL.green,(function(qq){return function(){
+        qq.claimed=true;S.coins+=qq.reward;persist();setFlash('任 务 完 成','+'+fmt(qq.reward),COL.green);
+      };})(q));
+    }
+  }
+  backBtn(556);
+}
+
+function drawStore(){
+  pageTitle('积 分 商 店');
+  ctx.fillStyle=COL.gold;ctx.font='12px system-ui';ctx.textAlign='center';
+  ctx.fillText('兑换后请在《暗区突围》游戏内输入兑换码',W/2,90);
+  for(var i=0;i<STORE.length;i++){
+    var it=STORE[i],y=110+i*104;
+    ctx.fillStyle=COL.card;rr(20,y,380,92,12);ctx.fill();
+    ctx.strokeStyle=S.redeemed[it.id]?COL.gold:COL.line;ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle=COL.txt;ctx.font='500 14px system-ui';ctx.textAlign='left';
+    ctx.fillText(it.name,36,y+28);
+    ctx.fillStyle=COL.gold;ctx.font='500 14px system-ui';
+    ctx.fillText(fmt(it.cost)+' 柯恩币',36,y+52);
+    if(S.redeemed[it.id]){
+      ctx.fillStyle=COL.cyan;ctx.font='11px system-ui';ctx.textAlign='left';
+      ctx.fillText(S.redeemed[it.id],36,y+76);
+      ctx.fillStyle=COL.sub;ctx.font='11px system-ui';ctx.textAlign='right';
+      ctx.fillText('已兑换',384,y+28);
+    }else{
+      smallBtn(272,y+42,112,32,'兑 换',S.coins>=it.cost?COL.gold:COL.sub,(function(ii){return function(){doRedeem(ii);};})(it));
+    }
+  }
+  backBtn(556);
+}
+
+function drawRaid(){
+  ctx.textAlign='left';ctx.fillStyle=COL.sub;ctx.font='13px system-ui';
+  ctx.fillText('装备 '+GEARS[gear].name,20,26);
+  ctx.textAlign='right';ctx.fillStyle=COL.txt;
+  ctx.fillText('背包 '+fmt(Math.round(value*GEARS[gear].mul)),W-20,26);
+
+  var hmx=hpMax(),amx=alertMax();
+  ctx.textAlign='left';ctx.fillStyle=COL.sub;ctx.font='12px system-ui';
+  ctx.fillText('生命',20,48);
+  ctx.textAlign='right';ctx.fillStyle=hp>hmx*0.5?COL.green:COL.red;
+  ctx.fillText(hp+' / '+hmx,W-20,48);
+  ctx.fillStyle=COL.card;rr(20,56,380,12,6);ctx.fill();
+  if(hp>0){ctx.fillStyle=hp>hmx*0.5?COL.green:COL.red;rr(20,56,380*hp/hmx,12,6);ctx.fill();}
+
+  ctx.textAlign='left';ctx.fillStyle=COL.sub;
+  ctx.fillText('警戒',20,86);
+  ctx.textAlign='right';ctx.fillText(alertLv+' / '+amx,W-20,86);
+  ctx.fillStyle=COL.card;rr(20,94,380,12,6);ctx.fill();
+  var aw=380*Math.min(alertLv,amx)/amx;
+  if(aw>0){ctx.fillStyle=alertLv>amx*0.7?COL.red:COL.orange;rr(20,94,aw,12,6);ctx.fill();}
+
+  var ec=escapeChance();
+  ctx.textAlign='center';ctx.font='500 14px system-ui';
+  ctx.fillStyle=ec>=70?COL.green:(ec>=45?COL.orange:COL.red);
+  ctx.fillText('撤离成功率 '+ec+'%',W/2,128);
+  ctx.font='12px system-ui';ctx.fillStyle=COL.sub;
+  ctx.fillText('警戒高易遭埋伏掉血 · 残血撤离更易被蹲',W/2,148);
+
+  var L=cellSize(),GX=L.GX,GY=160,CW=L.CW,CH=L.CH,GAP=L.GAP,i,r,c,x,y;
+  for(i=0;i<grid.length;i++){
+    var g=grid[i];r=g.row;c=g.col;
+    x=GX+c*(CW+GAP);y=GY+r*(CH+GAP);
+    if(r>=L.row-L.core){ctx.fillStyle='#101a30';rr(x,y,CW,CH,8);ctx.fill();}
+    if(g.opened){
+      if(g.type==='danger'){
+        ctx.fillStyle='#2a1620';rr(x,y,CW,CH,8);ctx.fill();
+        ctx.strokeStyle=COL.red;ctx.lineWidth=1;ctx.stroke();
+        ctx.fillStyle=COL.red;ctx.font='500 13px system-ui';ctx.textAlign='center';
+        ctx.fillText('脚步声',x+CW/2,y+CH*0.42);
+        ctx.fillStyle=COL.sub;ctx.font='12px system-ui';
+        ctx.fillText('警戒 +'+GEARS[gear].dgr,x+CW/2,y+CH*0.72);
+      }else if(!g.item){
+        ctx.fillStyle='#1a1f2e';rr(x,y,CW,CH,8);ctx.fill();
+        ctx.strokeStyle=COL.line;ctx.lineWidth=1;ctx.stroke();
+        ctx.fillStyle=COL.sub;ctx.font='500 13px system-ui';ctx.textAlign='center';
+        ctx.fillText('空的',x+CW/2,y+CH*0.52);
+      }else{
+        var it=g.item,tc=TIERS[it.tier].c;
+        ctx.fillStyle=it.tier>=4?'#2a2410':'#12241a';rr(x,y,CW,CH,8);ctx.fill();
+        ctx.strokeStyle=tc;ctx.lineWidth=it.tier>=4?2:1;ctx.stroke();
+        ctx.fillStyle=tc;ctx.font='500 11px system-ui';ctx.textAlign='center';
+        ctx.fillText(it.n,x+CW/2,y+CH*0.36);
+        ctx.fillStyle=tc;ctx.font='500 12px system-ui';
+        ctx.fillText('+'+fmt(it.v),x+CW/2,y+CH*0.64);
+        if(g.type==='safe'){ctx.fillStyle=COL.gold;ctx.font='11px system-ui';ctx.fillText('保险箱',x+CW/2,y+CH*0.86);}
+      }
+    }else{
+      ctx.fillStyle=COL.card;rr(x,y,CW,CH,8);ctx.fill();
+      var bc=COL.line;
+      if(g.revealed==='danger')bc=COL.red;
+      else if(g.revealed==='gold')bc=COL.gold;
+      else if(g.revealed==='safe')bc=COL.green;
+      ctx.strokeStyle=bc;ctx.lineWidth=g.revealed?1.5:1;ctx.stroke();
+      ctx.fillStyle=g.revealed?bc:COL.sub;ctx.font='500 20px system-ui';ctx.textAlign='center';
+      ctx.fillText('?',x+CW/2,y+CH/2+7);
+      if(g.revealed){
+        ctx.font='11px system-ui';ctx.textAlign='right';
+        ctx.fillText(g.revealed==='danger'?'危':(g.revealed==='gold'?'珍':'安'),x+CW-5,y+15);
+      }
+      hits.push({x:x,y:y,w:CW,h:CH,action:(function(k){return function(){openCell(k);};})(i)});
+    }
+  }
+  var gbY=GY+L.row*(CH+GAP)+14;
+  button(20,gbY,380,56,'撤 离 · 成功率 '+ec+'%','保住 '+fmt(Math.round(value*GEARS[gear].mul)),ec>=70?COL.green:(ec>=45?COL.orange:COL.red),tryEscape);
+  button(20,gbY+66,380,42,'放 弃 本 局','',COL.sub,function(){endRaid('dead');});
+  ctx.fillStyle=COL.sub;ctx.font='12px system-ui';ctx.textAlign='center';
+  ctx.fillText('已搜 '+opened+'/'+grid.length+' · 底部 '+L.core+' 行是核心区，最肥也最险',W/2,gbY+126);
+
+  if(pendingEvent){
+    hits=[];
+    ctx.fillStyle='rgba(11,17,32,0.86)';ctx.fillRect(0,0,W,H);
+    var it2=pendingEvent.item,tc2=TIERS[it2.tier].c;
+    ctx.fillStyle=COL.card;rr(40,180,340,240,16);ctx.fill();
+    ctx.strokeStyle=tc2;ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle=COL.orange;ctx.font='500 17px system-ui';ctx.textAlign='center';
+    ctx.fillText('有 人 捷 足 先 登',W/2,218);
+    ctx.fillStyle=COL.sub;ctx.font='13px system-ui';
+    ctx.fillText('这件物资刚被别人摸走',W/2,246);
+    ctx.fillStyle=tc2;ctx.font='500 15px system-ui';
+    ctx.fillText(it2.n,W/2,278);
+    ctx.fillStyle=tc2;ctx.font='500 20px system-ui';
+    ctx.fillText(fmt(it2.v),W/2,308);
+    button(40,336,340,54,'追 击 · 成功率 '+pendingEvent.chance+'%','成功额外 +50% 舔包奖励',COL.green,function(){resolveChase(true);});
+    button(40,398,340,54,'放 弃','稳妥，什么都拿不到',COL.sub,function(){resolveChase(false);});
+  }
+}
+
+function drawResult(){
+  var r=lastResult;
+  var title=r.reason==='escape'?'撤离成功':(r.reason==='ambush'?'撤离点被蹲了':(r.reason==='dead'?'你倒在了暗区':'你被围住了'));
+  var tcol=r.reason==='escape'?COL.green:COL.red;
+  ctx.fillStyle=tcol;ctx.font='500 22px system-ui';ctx.textAlign='center';
+  ctx.fillText(title,W/2,46);
+  ctx.fillStyle=COL.sub;ctx.font='13px system-ui';
+  ctx.fillText('搜刮 '+r.opened+'/'+grid.length+' · 生命 '+r.hp+'/'+hpMax()+' · 警戒 '+r.alertLv+'/'+alertMax(),W/2,74);
+  ctx.fillStyle=COL.sub;ctx.font='13px system-ui';
+  ctx.fillText('毛收益 '+fmt(r.gained)+' · 入场投入 '+fmt(r.cost),W/2,112);
+  ctx.fillStyle=r.net>=0?COL.green:COL.red;ctx.font='500 24px system-ui';
+  ctx.fillText((r.net>=0?'净赚 ':'净亏 ')+fmt(Math.abs(r.net)),W/2,146);
+  ctx.fillStyle=COL.card;rr(40,166,340,86,12);ctx.fill();
+  ctx.strokeStyle=COL.purple;ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle=COL.sub;ctx.font='12px system-ui';
+  ctx.fillText('你的摸金人格',W/2,192);
+  ctx.fillStyle=COL.txt;ctx.font='500 21px system-ui';
+  ctx.fillText(r.persona,W/2,226);
+  if(r.newDex.length){
+    ctx.fillStyle=COL.gold;ctx.font='12px system-ui';
+    ctx.fillText('新图鉴：'+r.newDex.join(' · '),W/2,272);
+  }
+  var ri2=rankIdx();
+  ctx.fillStyle=COL.sub;ctx.font='13px system-ui';
+  ctx.fillText('柯恩币 '+fmt(S.coins)+' · 段位 '+RANKS[ri2].n,W/2,300);
+  var nxt2=(ri2<RANKS.length-1)?RANKS[ri2+1].t:null;
+  ctx.fillStyle=COL.cyan;ctx.font='12px system-ui';
+  ctx.fillText(nxt2!==null?('距 '+RANKS[ri2+1].n+' 还差 '+fmt(nxt2-S.total)):'已达最高段位',W/2,322);
+  button(40,344,340,52,'再 来 一 局','再投入 '+fmt(GEARS[gear].cost)+' · '+GEARS[gear].name,COL.blue,function(){enterRaid(gear);});
+  button(40,406,340,52,'更 换 装 备','回到装备选择',COL.orange,function(){state='menu';});
+  button(40,468,340,52,'仓 库 / 商 店','升级或兑换CDK',COL.gold,function(){state='shop';});
+}
+
+function drawFlash(){
+  if(!flash)return;
+  var a=Math.min(1,flash.t/22);
+  ctx.fillStyle='rgba(11,17,32,'+(0.8*a)+')';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=COL.card;rr(45,230,330,150,16);ctx.fill();
+  ctx.strokeStyle=flash.color;ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle=flash.color;ctx.font='500 28px system-ui';ctx.textAlign='center';
+  ctx.fillText(flash.title,W/2,288);
+  if(flash.sub){ctx.fillStyle=COL.txt;ctx.font='500 13px system-ui';ctx.fillText(flash.sub,W/2,330);}
+}
+
+function loop(){
+  if(state==='raid')setH(raidH());else setH(620);
+  hits=[];
+  ctx.fillStyle=COL.bg;ctx.fillRect(0,0,W,H);
+  if(state==='menu')drawMenu();
+  else if(state==='raid')drawRaid();
+  else if(state==='shop')drawShop();
+  else if(state==='dex')drawDex();
+  else if(state==='quest')drawQuest();
+  else if(state==='store')drawStore();
+  else drawResult();
+  drawFlash();
+  if(flash){flash.t--;if(flash.t<=0)flash=null;}
+  requestAnimationFrame(loop);
+}
+
+cv.addEventListener('click',function(e){
+  if(flash&&!pendingEvent)return;
+  var rect=cv.getBoundingClientRect();
+  var x=(e.clientX-rect.left)*(W/rect.width);
+  var y=(e.clientY-rect.top)*(H/rect.height);
+  for(var i=0;i<hits.length;i++){
+    var h=hits[i];
+    if(x>=h.x&&x<=h.x+h.w&&y>=h.y&&y<=h.y+h.h){h.action();break;}
+  }
+});
+
+loadSave();
+applyDPR();
+loop();
+</script>
+</body>
+</html>

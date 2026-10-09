@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>摆瑞何 · 游戏策划作品集</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#14141c; color:#e8e8f0;
+    font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+    line-height:1.75;
+  }
+  .wrap { max-width:960px; margin:0 auto; padding:48px 24px 80px; }
+  header { text-align:center; padding:32px 0 8px; }
+  header h1 { font-size:34px; letter-spacing:6px; color:#fff; }
+  header .sub { color:#8f93a8; margin-top:10px; font-size:15px; }
+  header .tags { margin-top:16px; }
+  .tag {
+    display:inline-block; margin:4px; padding:4px 14px; border-radius:16px;
+    background:#23232f; color:#9fb6ff; font-size:13px; border:1px solid #34344a;
+  }
+  .card {
+    background:#1c1c26; border:1px solid #2c2c3c; border-radius:14px;
+    padding:32px 36px; margin-top:28px;
+  }
+  .card h2 { font-size:22px; color:#fff; margin-bottom:6px; }
+  .card .meta { color:#8f93a8; font-size:13px; margin-bottom:16px; }
+  .card p { color:#c8cad8; font-size:15px; margin:8px 0; }
+  .card img { max-width:100%; border-radius:10px; margin:14px 0; display:block; }
+  ul { padding-left:20px; color:#c8cad8; font-size:15px; }
+  li { margin:6px 0; }
+  .btn {
+    display:inline-block; margin:10px 8px 0 0; padding:10px 26px; border-radius:8px;
+    background:linear-gradient(135deg,#5b6cff,#8a5bff); color:#fff; text-decoration:none;
+    font-size:15px; font-weight:bold; transition:opacity .2s;
+  }
+  .btn:hover { opacity:.85; }
+  .btn.ghost { background:#2a2a3a; color:#c8cad8; border:1px solid #3c3c52; }
+  footer { text-align:center; color:#5c5f74; font-size:13px; margin-top:56px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>摆瑞何</h1>
+    <div class="sub">北京大学元培学院 · 金融学 ｜ 求职方向：游戏策划（活动 / 系统 / 数值）</div>
+    <div class="tags">
+      <span class="tag">玩法设计</span>
+      <span class="tag">数值平衡</span>
+      <span class="tag">AI 行为设计</span>
+      <span class="tag">Godot</span>
+      <span class="tag">AI 生产管线</span>
+    </div>
+  </header>
+
+  <div class="card">
+    <h2>🪞 《镜界行者》Mirror</h2>
+    <div class="meta">2D 顶视角反射射击 ｜ 多人对抗 ｜ Godot ｜ 独立完成（主策划 + 程序 + 制作）</div>
+    <p>所有子弹都会被镜面反弹——你的护盾同时也是敌人的武器。镜面同时充当生命值与攻防资源，
+       形成「攻防同源」的资源博弈；配套夺核胜利条件，构成完整单局节奏与翻盘空间。</p>
+    <img src="screenshots/gameplay.gif" alt="玩法演示">
+    <p>6 角色数值体系（8 维度）× 百局 AI 自动对局平衡验证（命中率 / K-D / 伤害等 6 项指标）
+       × 参数化行为树 NPC。使用 5 个 AI 工具协同，单人产能放大至团队级。</p>
+    <a class="btn" href="screenshots/gameplay-arena.png">查看实机截图</a>
+    <a class="btn ghost" href="https://github.com/YOUR_USERNAME/YOUR_REPO/releases">下载试玩（Windows）</a>
+  </div>
+
+  <div class="card">
+    <h2>💣 《暗区摸金 · 撤离》</h2>
+    <div class="meta">搜打撤玩法原型 ｜ HTML5 ｜ 策划 / 开发</div>
+    <p>把「搜打撤」核心乐趣拆解为可玩原型：警戒与暴富资源联动——警戒越高越易触发埋伏掉血、
+       血量越低撤离越易被蹲，使「贪欲的代价」立体化。五档物资价值比 1 : 5 : 25 : 100 : 500。</p>
+    <a class="btn" href="demos/anqu-mojin.html">▶ 在线试玩 Demo</a>
+  </div>
+
+  <div class="card">
+    <h2>🧰 技能</h2>
+    <ul>
+      <li><b>策划工具</b>：Excel 数值建模与平衡测算、脑图 / 流程图、玩法原型搭建</li>
+      <li><b>引擎与开发</b>：Godot / GDScript（可独立完成可玩 Demo）、Unity（了解）</li>
+      <li><b>数据与 AI</b>：SQL / Stata / Wind / iFinD；多智能体协同工作流（代码 / 美术 / 音效 / 动效全管线）</li>
+    </ul>
+  </div>
+
+  <footer>摆瑞何 ｜ 15810638715 ｜ ruihebai@163.com ｜ 本页面由 GitHub Pages 托管</footer>
+
+</div>
+</body>
+</html>

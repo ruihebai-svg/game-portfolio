@@ -1,0 +1,12 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# 导出产物不入库（走 GitHub Releases）
+*.exe
+*.apk
+*.zip
+
+# 系统文件
+.DS_Store
+Thumbs.db
