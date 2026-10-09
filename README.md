@@ -73,8 +73,10 @@
 
 | 平台 | 下载 |
 |---|---|
-| Windows | [MirrorWarrior.exe（Release 下载）](../../releases) |
-| macOS | [mirror-walker-macos.zip（Release 下载）](../../releases) |
+| Windows | **[⬇️ MirrorWarrior.exe](https://github.com/ruihebai-svg/game-portfolio/releases/download/v1.0/MirrorWarrior.exe)**（262MB，下载后直接双击运行） |
+| 全部版本 | [查看 Releases 页面](../../releases) |
+
+> 游戏为 Godot 引擎导出的独立可执行文件，无需安装、无需引擎环境。
 
 ---
 
